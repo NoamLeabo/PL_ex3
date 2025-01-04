@@ -33,6 +33,7 @@ let rec fv term =
 (* 
   Substitutes a variable with a replacement term in the given lambda term.
   Handles alpha-conversion to avoid variable capture.
+	Like - "(λvar.term) replacement"
 *)
 let rec substitute var replacement term =
   match term with

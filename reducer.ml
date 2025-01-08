@@ -56,6 +56,16 @@ let rec substitute var replacement term =
       Application (substitute var replacement t1, substitute var replacement t2)
 
 (* 
+  checks if a term is a value.
+  according to the definition (at least in the instructions in the task) in CBV, only abstractions are considered values.
+*)
+let rec is_value term =
+  match term with
+  | Parser.Abstraction _ -> true  (* a value is only an abstraction. *)
+  | _ -> false  (* all other terms are not values. *)
+
+
+(* 
   implements a single reduction step using Call-By-Value (CBV) semantics.
   reduces only when arguments are fully evaluated.
 *)
@@ -64,19 +74,24 @@ let rec reduce_cbv term =
   | Parser.Variable _ -> None  (* variables are irreducible. *)
   | Parser.Abstraction _ -> None  (* abstractions are already values. *)
   | Parser.Application (Parser.Abstraction (x, body), t2) ->
-      (* aeduces (λx. body) t2 if t2 is a value. *)
-      (match reduce_cbv t2 with
-      | None -> Some (substitute x t2 body)  (* substitute t2 into the body. *)
-      | Some t2' -> Some (Parser.Application (Parser.Abstraction (x, body), t2')))
-  | Parser.Application (t1, t2) ->
+      (* reduces (λx. body) t2 if t2 is a value. *)
+      if is_value t2 then
+        Some (substitute x t2 body)  (* substitute t2 into the body. *)
+        (* we perform substitution only if t2 is a value. *)
+      else (
+        match reduce_cbv t2 with
+        | Some t2' -> Some (Parser.Application (Parser.Abstraction (x, body), t2')) (* trying reducing t2 recursively if it's not yet a value. *)
+        | None -> None (* if t2 is irreducible and not a value, stop. *)
+      )
+  | Parser.Application (t1, t2) ->  
       (* try reducing t1 first. *)
       (match reduce_cbv t1 with
-      | Some t1' -> Some (Parser.Application (t1', t2))
+      | Some t1' -> Some (Parser.Application (t1', t2)) (* reduce t1 and construct the new application term. *)
       | None -> (
           (* if t1 is a value, try reducing t2. *)
           match reduce_cbv t2 with
-          | Some t2' -> Some (Parser.Application (t1, t2'))
-          | None -> None))
+          | Some t2' -> Some (Parser.Application (t1, t2')) (* reduce t2 and construct the new application term. *)
+          | None -> None)) (* if neither t1 nor t2 can be reduced and we stop. *)
 
 (* 
   implements a single reduction step using Call-By-Name (CBN) semantics.
